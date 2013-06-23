@@ -78,11 +78,13 @@ class ALDPackageDefinition {
 	}
 
 	public function GetDependencies() {
-		return $this->readArray('ald:dependencies/ald:dependency', array('name'), true);
+		return $this->readArray('ald:dependencies/ald:dependency', array('name'), '.');
 	}
 
-	public function GetRequirements() {
-		return $this->readArray('ald:requirements/ald:requirement', array('type'), true);
+	public function GetTargets() {
+		return $this->readArrayRecursive('ald:targets', 'ald:target',
+				array('id', 'message', 'language-architecture', 'language-encoding', 'system-architecture', 'system-version', 'system-type'),
+				'./ald:language-version', 'language-version');
 	}
 
 	public function GetTags() {
@@ -134,7 +136,7 @@ class ALDPackageDefinition {
 		return NULL;
 	}
 
-	private function readArray($fragment, $attributes, $version_tag = false) {
+	private function readArray($fragment, $attributes, $version_tag = NULL) {
 		$arr = array();
 
 		foreach ($this->xpath->query('/*/' . $fragment) AS $node) {
@@ -145,10 +147,40 @@ class ALDPackageDefinition {
 					$item[$attr] = $t;
 				}
 			}
-			if ($version_tag) {
-				$version = $this->readVersionTag($node);
+			if ($version_tag !== NULL) {
+				$version = $this->readVersionTag($this->xpath->query($version_tag, $node)->item(0));
 			}
 			$arr[] = array_merge($item, $version);
+		}
+
+		return $arr;
+	}
+
+	private function readArrayRecursive($root, $path, $attributes, $version_tag = NULL, $version_tag_key = NULL) {
+		$arr = array();
+
+		foreach ($this->xpath->query($root . '/' . $path) AS $node) {
+			$item = array();
+
+			$children = $this->readArrayRecursive($node->getNodePath(), $path, $attributes, $version_tag, $version_tag_key);
+			if (count($children) > 0) {
+				$item[] = $children;
+			}
+
+			foreach ($attributes AS $attr) {
+				if (($t = $this->readAttribute($attr, $node)) !== NULL) {
+					$item[$attr] = $t;
+				}
+			}
+
+			if ($version_tag !== NULL) {
+				$list = $this->xpath->query($version_tag, $node);
+				if ($list->length > 0) {
+					$item[$version_tag_key] = $this->readVersionTag($list->item(0));
+				}
+			}
+
+			$arr[] = $item;
 		}
 
 		return $arr;
