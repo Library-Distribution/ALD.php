@@ -45,6 +45,18 @@ class ALDPackageDefinition {
 		return $this->fileList('doc');
 	}
 
+	public function GetFilesHierarchy() {
+		return array('src' => $this->GetSourceFilesHierarchy(), 'doc' => $this->GetDocFilesHierarchy());
+	}
+
+	public function GetSourceFilesHierarchy() {
+		return $this->fileHierarchy('src');
+	}
+
+	public function GetDocFilesHierarchy() {
+		return $this->fileHierarchy('doc');
+	}
+
 	public function GetID() {
 		return $this->readAttribute('id');
 	}
@@ -124,6 +136,28 @@ class ALDPackageDefinition {
 			}
 
 			$files[] = $path;
+		}
+
+		return $files;
+	}
+
+	private function fileHierarchy($xpath, $top = true) {
+		$files = array('files' => array(), 'sets' => array());
+		$list_root = $this->xpath->query(($top ? '/*/ald:files/ald:' : '') . $xpath)->item(0);
+
+		if (!$top) {
+			$files['src'] = $list_root->getAttribute('ald:src');
+
+			$files['targets'] = array();
+			foreach ($this->xpath->query('./ald:target', $list_root) AS $node) {
+				$files['targets'][] = $node->getAttribute('ald:ref');
+			}
+		}
+		foreach ($this->xpath->query('./ald:file', $list_root) AS $node) {
+			$files['files'][] = $node->getAttribute('ald:path');
+		}
+		foreach ($this->xpath->query('./ald:file-set', $list_root) AS $node) {
+			$files['sets'][] = $this->fileHierarchy($node->getNodePath(), false);
 		}
 
 		return $files;
