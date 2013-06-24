@@ -93,10 +93,18 @@ class ALDPackageDefinition {
 		return $this->readArray('ald:dependencies/ald:dependency', array('name'), '.');
 	}
 
-	public function GetTargets() {
+	public function GetTargetsHierarchy() {
 		return $this->readArrayRecursive('ald:targets', 'ald:target',
 				array('id', 'message', 'language-architecture', 'language-encoding', 'system-architecture', 'system-version', 'system-type'),
 				'./ald:language-version', 'language-version');
+	}
+
+	public function GetTargets() {
+		$targets = array();
+		foreach ($this->GetTargetsHierarchy() AS $target) {
+			$targets = array_merge($targets, $this->flattenTarget($target));
+		}
+		return $targets;
 	}
 
 	public function GetTags() {
@@ -161,6 +169,23 @@ class ALDPackageDefinition {
 		}
 
 		return $files;
+	}
+
+	private function flattenTarget($obj, $parent = array()) {
+		$list = array();
+
+		unset($parent['id']); # so it doesn't overwrite
+		$target = array_merge($obj, $parent); # parent values overwrite child values
+		unset($target[0]); # so we don't have it in the output
+		$list[] = $target;
+
+		if (isset($obj[0]) && is_array($obj[0])) {
+			foreach ($obj[0] AS $child) {
+				$list = array_merge($list, $this->flattenTarget($child, $target));
+			}
+		}
+
+		return $list;
 	}
 
 	private function readAttribute($attr, $context = NULL) {
