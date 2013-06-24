@@ -34,7 +34,11 @@ class ALDPackageDefinition {
 	}
 
 	public function GetFiles() {
-		return array_merge($this->GetSourceFiles(), $this->GetDocFiles(), (array)$this->GetLogo());
+		$files = array_merge($this->GetSourceFiles(), $this->GetDocFiles());
+		if (!in_array($logo = $this->GetLogo(), $files) && $logo !== NULL) {
+			$files[] = $t;
+		}
+		return $files;
 	}
 
 	public function GetSourceFiles() {
