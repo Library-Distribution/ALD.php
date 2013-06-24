@@ -9,4 +9,6 @@ class UndefinedFileException extends Exception {
 }
 class UnknownSchemaException extends Exception {
 }
+class InvalidVersionSwitchException extends Exception {
+}
 ?>
