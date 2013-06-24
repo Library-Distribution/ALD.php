@@ -38,11 +38,11 @@ class ALDPackageDefinition {
 	}
 
 	public function GetSourceFiles() {
-		return $this->fileList('/*/ald:files/ald:src/ald:file/@ald:path');
+		return $this->fileList('src');
 	}
 
 	public function GetDocFiles() {
-		return $this->fileList('/*/ald:files/ald:doc/ald:file/@ald:path');
+		return $this->fileList('doc');
 	}
 
 	public function GetID() {
@@ -110,11 +110,20 @@ class ALDPackageDefinition {
 		}
 	}
 
-	private function fileList($xpath) {
+	private function fileList($list) {
 		$files = array();
+		$list_root = $this->xpath->query('/*/ald:files/ald:' . $list)->item(0);
 
-		foreach ($this->xpath->query($xpath) AS $node) {
-			$files[] = $node->nodeValue;
+		foreach ($this->xpath->query('.//ald:file', $list_root) AS $node) {
+			$path = $node->getAttribute('ald:path');
+
+			$curr_node = $node;
+			while ($curr_node->parentNode->tagName == 'ald:file-set') {
+				$curr_node = $curr_node->parentNode;
+				$path = $curr_node->getAttribute('ald:src') . '/' . $path;
+			}
+
+			$files[] = $path;
 		}
 
 		return $files;
