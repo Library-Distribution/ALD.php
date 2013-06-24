@@ -34,15 +34,31 @@ class ALDPackageDefinition {
 	}
 
 	public function GetFiles() {
-		return array_merge($this->GetSourceFiles(), $this->GetDocFiles(), (array)$this->GetLogo());
+		$files = array_merge($this->GetSourceFiles(), $this->GetDocFiles());
+		if (!in_array($logo = $this->GetLogo(), $files) && $logo !== NULL) {
+			$files[] = $t;
+		}
+		return $files;
 	}
 
 	public function GetSourceFiles() {
-		return $this->fileList('/*/ald:files/ald:src/ald:file/@ald:path');
+		return $this->fileList('src');
 	}
 
 	public function GetDocFiles() {
-		return $this->fileList('/*/ald:files/ald:doc/ald:file/@ald:path');
+		return $this->fileList('doc');
+	}
+
+	public function GetFilesHierarchy() {
+		return array('src' => $this->GetSourceFilesHierarchy(), 'doc' => $this->GetDocFilesHierarchy());
+	}
+
+	public function GetSourceFilesHierarchy() {
+		return $this->fileHierarchy('src');
+	}
+
+	public function GetDocFilesHierarchy() {
+		return $this->fileHierarchy('doc');
 	}
 
 	public function GetID() {
@@ -78,11 +94,21 @@ class ALDPackageDefinition {
 	}
 
 	public function GetDependencies() {
-		return $this->readArray('ald:dependencies/ald:dependency', array('name'), true);
+		return $this->readArray('ald:dependencies/ald:dependency', array('name'), '.');
 	}
 
-	public function GetRequirements() {
-		return $this->readArray('ald:requirements/ald:requirement', array('type'), true);
+	public function GetTargetsHierarchy() {
+		return $this->readArrayRecursive('ald:targets', 'ald:target',
+				array('id', 'message', 'language-architecture', 'language-encoding', 'system-architecture', 'system-version', 'system-type'),
+				'./ald:language-version', 'language-version');
+	}
+
+	public function GetTargets() {
+		$targets = array();
+		foreach ($this->GetTargetsHierarchy() AS $target) {
+			$targets = array_merge($targets, $this->flattenTarget($target));
+		}
+		return $targets;
 	}
 
 	public function GetTags() {
@@ -108,14 +134,62 @@ class ALDPackageDefinition {
 		}
 	}
 
-	private function fileList($xpath) {
+	private function fileList($list) {
 		$files = array();
+		$list_root = $this->xpath->query('/*/ald:files/ald:' . $list)->item(0);
 
-		foreach ($this->xpath->query($xpath) AS $node) {
-			$files[] = $node->nodeValue;
+		foreach ($this->xpath->query('.//ald:file', $list_root) AS $node) {
+			$path = $node->getAttribute('ald:path');
+
+			$curr_node = $node;
+			while ($curr_node->parentNode->tagName == 'ald:file-set') {
+				$curr_node = $curr_node->parentNode;
+				$path = $curr_node->getAttribute('ald:src') . '/' . $path;
+			}
+
+			$files[] = $path;
 		}
 
 		return $files;
+	}
+
+	private function fileHierarchy($xpath, $top = true) {
+		$files = array('files' => array(), 'sets' => array());
+		$list_root = $this->xpath->query(($top ? '/*/ald:files/ald:' : '') . $xpath)->item(0);
+
+		if (!$top) {
+			$files['src'] = $list_root->getAttribute('ald:src');
+
+			$files['targets'] = array();
+			foreach ($this->xpath->query('./ald:target', $list_root) AS $node) {
+				$files['targets'][] = $node->getAttribute('ald:ref');
+			}
+		}
+		foreach ($this->xpath->query('./ald:file', $list_root) AS $node) {
+			$files['files'][] = $node->getAttribute('ald:path');
+		}
+		foreach ($this->xpath->query('./ald:file-set', $list_root) AS $node) {
+			$files['sets'][] = $this->fileHierarchy($node->getNodePath(), false);
+		}
+
+		return $files;
+	}
+
+	private function flattenTarget($obj, $parent = array()) {
+		$list = array();
+
+		unset($parent['id']); # so it doesn't overwrite
+		$target = array_merge($obj, $parent); # parent values overwrite child values
+		unset($target[0]); # so we don't have it in the output
+		$list[] = $target;
+
+		if (isset($obj[0]) && is_array($obj[0])) {
+			foreach ($obj[0] AS $child) {
+				$list = array_merge($list, $this->flattenTarget($child, $target));
+			}
+		}
+
+		return $list;
 	}
 
 	private function readAttribute($attr, $context = NULL) {
@@ -134,7 +208,7 @@ class ALDPackageDefinition {
 		return NULL;
 	}
 
-	private function readArray($fragment, $attributes, $version_tag = false) {
+	private function readArray($fragment, $attributes, $version_tag = NULL) {
 		$arr = array();
 
 		foreach ($this->xpath->query('/*/' . $fragment) AS $node) {
@@ -145,10 +219,40 @@ class ALDPackageDefinition {
 					$item[$attr] = $t;
 				}
 			}
-			if ($version_tag) {
-				$version = $this->readVersionTag($node);
+			if ($version_tag !== NULL) {
+				$version = $this->readVersionTag($this->xpath->query($version_tag, $node)->item(0));
 			}
 			$arr[] = array_merge($item, $version);
+		}
+
+		return $arr;
+	}
+
+	private function readArrayRecursive($root, $path, $attributes, $version_tag = NULL, $version_tag_key = NULL) {
+		$arr = array();
+
+		foreach ($this->xpath->query($root . '/' . $path) AS $node) {
+			$item = array();
+
+			$children = $this->readArrayRecursive($node->getNodePath(), $path, $attributes, $version_tag, $version_tag_key);
+			if (count($children) > 0) {
+				$item[] = $children;
+			}
+
+			foreach ($attributes AS $attr) {
+				if (($t = $this->readAttribute($attr, $node)) !== NULL) {
+					$item[$attr] = $t;
+				}
+			}
+
+			if ($version_tag !== NULL) {
+				$list = $this->xpath->query($version_tag, $node);
+				if ($list->length > 0) {
+					$item[$version_tag_key] = $this->readVersionTag($list->item(0));
+				}
+			}
+
+			$arr[] = $item;
 		}
 
 		return $arr;
