@@ -212,21 +212,27 @@ class ALDPackageDefinition {
 		return NULL;
 	}
 
+	private function readAttributeList($node, $list) {
+		$data = array();
+		foreach ($list AS $attr) {
+			if (($t = $this->readAttribute($attr, $node)) !== NULL) {
+				$data[$attr] = $t;
+			}
+		}
+		return $data;
+	}
+
 	private function readArray($fragment, $attributes, $version_tag = NULL) {
 		$arr = array();
 
 		foreach ($this->xpath->query('/*/' . $fragment) AS $node) {
-			$item = array();
-			$version = array();
-			foreach ($attributes AS $attr) {
-				if (($t = $this->readAttribute($attr, $node)) !== NULL) {
-					$item[$attr] = $t;
-				}
-			}
+			$item = $this->readAttributeList($node, $attributes);
+
 			if ($version_tag !== NULL) {
-				$version = $this->readVersionTag($this->xpath->query($version_tag, $node)->item(0));
+				$item = array_merge($item, $this->readVersionTag($this->xpath->query($version_tag, $node)->item(0)));
 			}
-			$arr[] = array_merge($item, $version);
+
+			$arr[] = $item;
 		}
 
 		return $arr;
@@ -236,17 +242,11 @@ class ALDPackageDefinition {
 		$arr = array();
 
 		foreach ($this->xpath->query($root . '/' . $path) AS $node) {
-			$item = array();
+			$item = $this->readAttributeList($node, $attributes);
 
 			$children = $this->readArrayRecursive($node->getNodePath(), $path, $attributes, $version_tag, $version_tag_key);
 			if (count($children) > 0) {
 				$item[] = $children;
-			}
-
-			foreach ($attributes AS $attr) {
-				if (($t = $this->readAttribute($attr, $node)) !== NULL) {
-					$item[$attr] = $t;
-				}
 			}
 
 			if ($version_tag !== NULL) {
