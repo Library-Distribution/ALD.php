@@ -89,6 +89,10 @@ class ALDPackageDefinition {
 		return $this->readTag('description');
 	}
 
+	public function GetSummary() {
+		return $this->readTag('summary');
+	}
+
 	public function GetAuthors() {
 		return $this->readArray('ald:authors/ald:author', array('name', 'user-name', 'homepage', 'email'));
 	}
