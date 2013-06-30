@@ -35,7 +35,7 @@ class ALDVersionSwitch {
 			throw new InvalidVersionSwitchException('Invalid switch data');
 		}
 
-		if (isset($data['version-range'])) {
+		if (array_key_exists('version-range', $data)) {
 			if (!is_array($data['version-range'])
 				|| count($data['version-range']) != 2
 				|| !isset($data['version-range']['min'])
@@ -46,8 +46,7 @@ class ALDVersionSwitch {
 				throw new InvalidVersionSwitchException('Invalid version range: min > max');
 			}
 
-		}
-		else if (isset($data['version-list'])) {
+		} else if (array_key_exists('version-list', $data)) {
 			if (!is_array($data['version-list'])) {
 				throw new InvalidVersionSwitchException('Invalid version list: not an array');
 			}
@@ -55,8 +54,10 @@ class ALDVersionSwitch {
 				throw new InvalidVersionSwitchException('Invalid version list: not a continous zero-based array');
 			}
 
-		} else if (!isset($data['version'])) {
+		} else if (!array_key_exists('version', $data)) {
 			throw new InvalidVersionSwitchException('Invalid switch data: unsupported fields');
+		} else if ($data['version'] === NULL) {
+			throw new InvalidVersionSwitchException('Invalid version: must not be NULL');
 		}
 	}
 }
