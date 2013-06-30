@@ -1,0 +1,13 @@
+language: php
+php:
+  - "5.5"
+  - "5.4"
+  - "5.3"
+  - "5.2"
+
+before_script:
+  - ./tests/setup/schema.sh
+
+script:
+  - ./tests/syntax.sh
+  - phpunit --colors tests
