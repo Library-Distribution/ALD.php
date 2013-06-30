@@ -42,6 +42,9 @@ class ALDVersionSwitch {
 				|| !isset($data['version-range']['max'])) {
 				throw new InvalidVersionSwitchException();
 			}
+			if ($this->compare($data['version-range']['min'], $data['version-range']['max']) > 0) {
+				throw new InvalidVersionSwitchException();
+			}
 		}
 		else if (isset($data['version-list'])) {
 			if (!is_array($data['version-list'])) {
