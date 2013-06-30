@@ -123,6 +123,20 @@ class ALDPackageDefinition {
 		return $tags;
 	}
 
+	public function GetDevelopment() {
+		$repos = array();
+
+		foreach ($this->xpath->query('/*/ald:development/ald:repository') AS $node) {
+			$repo = array('type' => $this->readAttribute('type', $node), 'view-url' => $this->readAttribute('view-url', $node));
+
+			$fragment = substr($node->getNodePath(), strlen($this->document->documentElement->getNodePath()) + 1) . '/ald:url';
+			$repo['urls'] = $this->readArray($fragment, array('access', 'protocol'), NULL, 'url');
+			$repos[] = $repo;
+		}
+
+		return $repos;
+	}
+
 	public function GetLinks() {
 		return $this->readArray('ald:links/ald:link', array('name', 'description', 'href'));
 	}
@@ -222,7 +236,7 @@ class ALDPackageDefinition {
 		return $data;
 	}
 
-	private function readArray($fragment, $attributes, $version_tag = NULL) {
+	private function readArray($fragment, $attributes, $version_tag = NULL, $value_as = NULL) {
 		$arr = array();
 
 		foreach ($this->xpath->query('/*/' . $fragment) AS $node) {
@@ -230,6 +244,9 @@ class ALDPackageDefinition {
 
 			if ($version_tag !== NULL) {
 				$item = array_merge($item, $this->readVersionTag($this->xpath->query($version_tag, $node)->item(0)));
+			}
+			if ($value_as !== NULL) {
+				$item[$value_as] = $node->nodeValue;
 			}
 
 			$arr[] = $item;
