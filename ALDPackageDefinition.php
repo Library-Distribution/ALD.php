@@ -130,7 +130,7 @@ class ALDPackageDefinition {
 			$repo = array('type' => $this->readAttribute('type', $node), 'view-url' => $this->readAttribute('view-url', $node));
 
 			$fragment = substr($node->getNodePath(), strlen($this->document->documentElement->getNodePath()) + 1) . '/ald:url';
-			$repo['urls'] = $this->readArray($fragment, array('access', 'protocol'), NULL, 'url');
+			$repo['urls'] = $this->readArray($fragment, array('access'), NULL, 'url');
 			$repos[] = $repo;
 		}
 
